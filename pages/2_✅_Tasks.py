@@ -4,12 +4,29 @@ import uuid
 from supabase import create_client
 from dotenv import load_dotenv
 import os
-
+import logging
+from logging.handlers import RotatingFileHandler
 
 load_dotenv()
 
 url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
+
+logger = logging.getLogger("Tasks")
+logger.setLevel(logging.INFO)
+logger.propagate = False
+
+if not logger.handlers:
+    handler = RotatingFileHandler(filename="./logs/tasks.log",
+                                maxBytes=1000000,
+                                backupCount=5)
+    
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+    
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
 
 conn = create_client(url, key)
 
@@ -50,15 +67,18 @@ if st.session_state.get('logged_in') == True:
                 .eq('user_id', current_user)\
                 .eq('active', True)\
                 .execute()\
+            
+            logger.info(f"Successfully retrieved task: {taskid_to_edit} from table 'tasks' to edit, count {len(response.data)}")
                 
             
             if response.data:
                 edit_task = response.data[0]
             else:
-                st.error("Task not found")
+                st.error("Task not found.")
                 st.stop()
         except Exception as e:
-            st.error(f"Server Error {e}")
+            st.error(f"Server error occurred, please try again later") 
+            logger.exception(f"Failed to retrieve task: {taskid_to_edit} from table 'tasks' to edit.")
             st.stop()
         
         if len(edit_task):
@@ -75,25 +95,32 @@ if st.session_state.get('logged_in') == True:
 
         due_date = st.date_input("Due Date",value=default_date)
 
-        btn = st.form_submit_button("✏️ Update Task" if st.session_state['task_edit_mode'] else "➕ Add Task")
+        add_task = st.form_submit_button("✏️ Update Task" if st.session_state['task_edit_mode'] else "➕ Add Task")
 
-        if btn:
+        if add_task:
+
+            logging.info(f"User: {current_user} submitted a task.")
 
             if len(task.strip()) ==0:
                 st.warning("Task cannot be empty.")
+                logger.info(f"failed to add a task for user: {current_user}, task is empty.")
 
             else:
 
                 if st.session_state['task_edit_mode']:
 
+                    logger.info(f"Received request for user: {current_user} to edit a task.")
+
                     try:
-                        upd_task = conn.table("tasks")\
+                        update_task = conn.table("tasks")\
                                        .update({'task_name':task, 'due_date':due_date.isoformat()})\
                                        .eq('task_id', st.session_state['task_to_edit'])\
                                        .eq('user_id', current_user)\
                                        .execute()
+                        logger.info(f"Task update is success for user: {current_user}, task_id: {st.session_state['task_to_edit']}")
                     except Exception as e:
-                        st.error(f"Failed to edit the task, please try again. {e}")
+                        st.error("Error while updating task, Please Try again later.")
+                        logger.exception(f"Failed to update task for user: {current_user}, task_id: {st.session_state['task_to_edit']}")
                         st.stop()
 
                     st.session_state['message_task'] = "Task Updated."  
@@ -102,13 +129,16 @@ if st.session_state.get('logged_in') == True:
                 
                 else:     
                     task_id = str(uuid.uuid4())
+                    logger.info(f"Received request for user: {current_user} to add a task.")
 
                     try:
                         new_task = conn.table("tasks")\
                                        .insert({'user_id':current_user, 'task_id':task_id, 'task_name':task, 'due_date':due_date.isoformat(), 'completion_date':None, 'active':True})\
                                        .execute()
+                        logger.info(f"Successfully added task for user {current_user} to 'tasks' table.")
                     except Exception as e:
-                        st.error(f"Error while adding the task, please try again. {e}")
+                        st.error(f"Error while adding task, please try again later.")
+                        logger.Exception(f"Failed to add task for user:{current_user}")
                         st.stop()
                     st.session_state['message_task'] = "Task Added."
                 st.rerun()
@@ -118,7 +148,7 @@ if st.session_state.get('logged_in') == True:
     with st.expander("📋 Your Tasks"):
 
         try:
-            all_tasks = None
+            all_tasks = []
             all_tasks = conn.table("tasks")\
                             .select('user_id', 'task_id', 'task_name','due_date')\
                             .eq('user_id',current_user)\
@@ -127,12 +157,15 @@ if st.session_state.get('logged_in') == True:
                             .order('due_date', desc=False)\
                             .execute()\
                             .data
+            logger.info(f"Successfully retrieved all tasks for user: {current_user} to display, count {len(all_tasks)}")
         except Exception as e:
-            st.error(f"Error while retrieving the tasks, please try again. {e}")
+            st.error(f"Failed to load tasks, please try again later.")
+            logger.exception(f"Failed to load tasks from table 'tasks' for user: {current_user}.")
             st.stop()
 
         if len(all_tasks) == 0:
             st.info("No tasks yet. Add your first task above 👆")
+            logger.info("No tasks to display for user: {current_user}")
 
         else:
 
@@ -161,9 +194,10 @@ if st.session_state.get('logged_in') == True:
 
 
                 #mark as completed
-                completed_btn = col1.button("✅ Completed",type='primary', key=f"c_{current_task}")
+                completed_add_task = col1.button("✅ Completed",type='primary', key=f"c_{current_task}")
 
-                if completed_btn:
+                if completed_add_task:
+                    logger.info(f"Received a request to mark task: {current_task} as complete for user: {current_user} ")
 
                     completion_date = datetime.now().date()
                     
@@ -173,8 +207,11 @@ if st.session_state.get('logged_in') == True:
                             .eq('task_id', current_task)\
                             .eq('user_id', current_user)\
                             .execute()
+                        logger.info(f"Completed task: {current_task} for user: {current_user}")
+                        
                     except Exception as e:
-                        st.error(f"Error while marking the task as complete, please try again. {e}")
+                        st.error(f"Error while marking the task as complete, please try again later.")
+                        logger.exception(f"failed to mark task: {current_task} as complete for user: {current_user} from table 'tasks'.")
                         st.stop()
 
                     st.session_state['message_task'] = "Yay!! you have completed a Task."
@@ -183,18 +220,21 @@ if st.session_state.get('logged_in') == True:
 
 
                 #delete the task
-                delete_btn = col2.button("❌ Delete", type='primary' ,key=f"d_{current_task}")
+                del_btn = col2.button("❌ Delete", type='primary' ,key=f"d_{current_task}")
 
-                if delete_btn:
-
+                if del_btn:
+                    logger.info(f"Received a request to delete task: {current_task} for user: {current_user} ")
                     try:
                         delete_task = conn.table("tasks")\
                             .update({'active':False})\
                             .eq('task_id', current_task)\
                             .eq('user_id', current_user)\
                             .execute()
+                        logger.info(f"Deleted task: {current_task} for user: {current_user}")
                     except Exception as e:
-                        st.error(f"Error while deleting the task, please try again. {e}")
+                        st.error(f"Failed to delete the task, please try again later")
+                        logger.exception(f"failed to delete task: {current_task} for user: {current_user} from table 'tasks'")
+                            
                         st.stop()
 
                     st.session_state['message_task'] = "Task Deleted."
@@ -202,9 +242,9 @@ if st.session_state.get('logged_in') == True:
                     st.rerun()
 
                 #edit the task
-                edit_btn = col3.button("✏️ Edit", type='primary', key=f"e_{current_task}")
+                edit_add_task = col3.button("✏️ Edit", type='primary', key=f"e_{current_task}")
 
-                if edit_btn:
+                if edit_add_task:
                         st.session_state['task_to_edit'] = current_task
                         st.session_state['task_edit_mode'] = True
                         st.rerun()
@@ -222,12 +262,15 @@ if st.session_state.get('logged_in') == True:
                             .order('completion_date', desc=True)\
                             .execute()\
                             .data
+            logger.info(f"Successfully retrieved completed tasks for user: {current_user}, count: {len(completed_tasks)}")
         except Exception as e:
-            st.error(f"Error while retrieving the completed tasks, please try again. {e}")
+            st.error(f"Error while retrieving the completed tasks, please try again later")
+            logger.exception(f"Failed to retrieve completed tasks for user: {current_user}")
 
 
         if len(completed_tasks) == 0:
             st.markdown("### 📚 No tasks completed yet")
+            logger.info(f"User: {current_task} haven't completed any tasks yet.")
 
         else:
             for task in completed_tasks:

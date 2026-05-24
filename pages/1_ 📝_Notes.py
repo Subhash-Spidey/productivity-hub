@@ -3,11 +3,28 @@ import uuid
 from supabase import create_client
 from dotenv import load_dotenv
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 
 load_dotenv()
 
 url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
+
+logger = logging.getLogger("Notes")
+logger.setLevel(logging.INFO)
+logger.propagate = False
+
+if not logger.handlers:
+    handler = RotatingFileHandler(filename='./logs/notes.log',
+                                  maxBytes=1000000,
+                                  backupCount=5)
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+    
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    
 
 conn = create_client(url, key)
 
@@ -47,8 +64,10 @@ if st.session_state.get('logged_in') == True:
                                  .eq("note_id", noteid_to_edit)\
                                  .eq("user_id", current_user)\
                                  .eq('active', True)\
-                                 .execute()\
+                                 .execute()
             
+            logger.info(f"Successfully retrieved note: {noteid_to_edit} from table 'notes' to edit, count {len(response.data)}")
+
             if response.data:
                 edit_note = response.data[0]
             else:
@@ -56,7 +75,9 @@ if st.session_state.get('logged_in') == True:
                 st.stop()
 
         except Exception as e:
-            st.error(f"Server error: {e}") 
+            st.error(f"Server error occurred, please try again later") 
+            logger.exception(f"Failed to retrieve note: {noteid_to_edit} from table 'notes' to edit.")
+            st.stop()
 
         if len(edit_note) != 0:
             default_text = edit_note['title']
@@ -76,14 +97,19 @@ if st.session_state.get('logged_in') == True:
 
         if add_note:
 
+            logging.info(f"User: {current_user} submitted a note.")
+
             if len(title.strip()) == 0 or len(content.strip()) == 0:
                 if len(title.strip()) == 0:
                     st.warning("Title cannot be empty.")
                 if len(content.strip()) == 0:
                     st.warning("Content cannot be empty.")
+                logger.info(f"failed to add a note for user: {current_user}, either title or content is empty.")
 
             else:
                 if st.session_state['note_edit_mode']:
+
+                    logger.info(f"Received request for user: {current_user} to edit a note.")
                     
                     try:
                         update_note = conn.table('notes')\
@@ -91,46 +117,53 @@ if st.session_state.get('logged_in') == True:
                                          .eq('note_id', st.session_state['note_to_edit'])\
                                          .eq('user_id', current_user)\
                                          .execute()
+                        logger.info(f"Note update is success for user: {current_user}, note_id: {st.session_state['note_to_edit']}")
                     except:
-                        st.error("Error while updating notes, Please Try again")
+                        st.error("Error while updating notes, Please Try again later")
+                        logger.exception(f"Failed to update note for user: {current_user}, note_id: {st.session_state['note_to_edit']}")
                         st.stop() 
 
-                    st.session_state['message_note'] = "Note Updated."             
+                    st.session_state['message_note'] = "Note Updated."  
+                    st.session_state['note_to_edit'] = None
+                    st.session_state['note_edit_mode'] = False           
 
                 else:    
                     unique_id = str(uuid.uuid4())
+                    logger.info(f"Received request for user: {current_user} to add a note.")
 
                     try:
                         add_notes = conn.table("notes")\
                                     .insert({'user_id':current_user, 'note_id':unique_id, 'title':title, 'content':content, 'active':True})\
                                     .execute()
+                        logger.info(f"Successfully added note for user: {current_user} to 'notes' table.")
                     except Exception as e:
-                        st.error("Error while adding notes, Please Try again")
+                        st.error("Error while adding notes, Please Try again later")
+                        logger.Exception(f"Failed to add note for user: {current_user}")
                         st.stop()
 
                     st.session_state['message_note'] = "Note Added."
-                    
-
-                st.session_state['note_to_edit'] = None
-                st.session_state['note_edit_mode'] = False
                 st.rerun() 
 
 
     with st.expander("📒 Your Notes"):
 
         try: 
+            all_notes = []
             all_notes = conn.table("notes")\
                             .select('note_id','title', 'content')\
                             .eq('user_id', current_user)\
                             .eq('active', True)\
                             .execute()\
                             .data
+            logger.info(f"Successfully retrieved all notes for user: {current_user} to display, count {len(all_notes)}")
         except Exception as e:
-            st.error(f"Failed to load notes, please try again.{e}")
+            st.error(f"Failed to load notes, please try again later")
+            logger.exception(f"Failed to load notes from table 'notes' for user: {current_user}.")
             st.stop()
 
         if len(all_notes) == 0:
             st.info("No notes yet. Add your first note above 👆")
+            logger.info("No notes to display for user: {current_user}")
 
         else:
             for note in all_notes:
@@ -159,15 +192,17 @@ if st.session_state.get('logged_in') == True:
                     del_btn = col1.button("❌ Delete",type='primary', key=f"c_{current_note}")
 
                     if del_btn:
-
+                        logger.info(f"Received a request to delete note: {current_note} for user: {current_user} ")
                         try:
                             delete_note = conn.table('notes')\
                                               .update({'active': False})\
                                               .eq('note_id', current_note)\
                                               .eq('user_id', current_user)\
                                               .execute()
+                            logger.info(f"Deleted note: {current_note} for user: {current_user}")
                         except Exception as e:
-                            st.error(f"Unable to delete the note, please try again {e}")
+                            st.error(f"Failed to delete the note, please try again later")
+                            logger.exception(f"failed to delete note: {current_note} for user: {current_user} from table 'notes'")
                             st.stop()
 
                         st.session_state['message_note'] = "Note Deleted." 

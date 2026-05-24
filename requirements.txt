@@ -1,3 +1,3 @@
-supabase
-python-dotenv
-streamlit
+supabase==2.30.0
+python-dotenv==1.2.1
+streamlit==1.55.0
