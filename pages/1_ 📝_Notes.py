@@ -66,17 +66,17 @@ if st.session_state.get('logged_in') == True:
                                  .eq('active', True)\
                                  .execute()
             
-            logger.info(f"Successfully retrieved note: {noteid_to_edit} from table 'notes' to edit, count {len(response.data)}")
+            logger.info(f"Successfully retrieved note: {noteid_to_edit}")
 
             if response.data:
                 edit_note = response.data[0]
             else:
-                st.error("Note not found")
+                st.error("Note not found, please try again later.")
                 st.stop()
 
         except Exception as e:
             st.error(f"Server error occurred, please try again later") 
-            logger.exception(f"Failed to retrieve note: {noteid_to_edit} from table 'notes' to edit.")
+            logger.exception(f"Failed to retrieve note: {noteid_to_edit} to edit.")
             st.stop()
 
         if len(edit_note) != 0:
@@ -102,7 +102,7 @@ if st.session_state.get('logged_in') == True:
             if len(title.strip()) == 0 or len(content.strip()) == 0:
                 if len(title.strip()) == 0:
                     st.warning("Title cannot be empty.")
-                if len(content.strip()) == 0:
+                elif len(content.strip()) == 0:
                     st.warning("Content cannot be empty.")
                 logger.info(f"failed to add a note for user: {current_user}, either title or content is empty.")
 
@@ -135,9 +135,9 @@ if st.session_state.get('logged_in') == True:
                         add_notes = conn.table("notes")\
                                     .insert({'user_id':current_user, 'note_id':unique_id, 'title':title, 'content':content, 'active':True})\
                                     .execute()
-                        logger.info(f"Successfully added note for user: {current_user} to 'notes' table.")
+                        logger.info(f"Successfully added note for user: {current_user}.")
                     except Exception as e:
-                        st.error("Error while adding notes, Please Try again later")
+                        st.error("Error while adding notes, please try again later")
                         logger.Exception(f"Failed to add note for user: {current_user}")
                         st.stop()
 
@@ -202,7 +202,7 @@ if st.session_state.get('logged_in') == True:
                             logger.info(f"Deleted note: {current_note} for user: {current_user}")
                         except Exception as e:
                             st.error(f"Failed to delete the note, please try again later")
-                            logger.exception(f"failed to delete note: {current_note} for user: {current_user} from table 'notes'")
+                            logger.exception(f"failed to delete note: {current_note} for user: {current_user} from table.")
                             st.stop()
 
                         st.session_state['message_note'] = "Note Deleted." 

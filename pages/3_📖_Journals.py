@@ -73,7 +73,7 @@ if st.session_state.get('logged_in') == True:
                                .eq('user_id', current_user)\
                                .eq('active', True)\
                                .execute()
-            logger.info(f"Successfully retrieved journal: {journalid_to_edit} from table 'journals' to edit, count {len(response.data)}")
+            logger.info(f"Successfully retrieved journal: {journalid_to_edit}")
                                
             if response.data:
                 edit_journal = response.data[0]
@@ -83,7 +83,7 @@ if st.session_state.get('logged_in') == True:
             
         except Exception as e:
             st.error(f"Server error occurred, please try again later") 
-            logger.exception(f"Failed to retrieve journal: {journalid_to_edit} from table 'journals' to edit.")
+            logger.exception(f"Failed to retrieve journal: {journalid_to_edit} to edit.")
             st.stop()
         
 
@@ -132,7 +132,7 @@ if st.session_state.get('logged_in') == True:
                                        .execute()
                         logger.info(f"Journal update is success for user: {current_user}, journal_id: {st.session_state['journal_to_edit']}")
                     except Exception as e:
-                        st.error("Error while updating journal, Please Try again later")
+                        st.error("Error while updating journal, please try again later")
                         logger.exception(f"Failed to update journal for user: {current_user}, journal_id: {st.session_state['journal_to_edit']}")
                         
                         st.error()
@@ -150,9 +150,9 @@ if st.session_state.get('logged_in') == True:
                         add_journal = conn.table('journals')\
                                         .insert({'user_id':current_user,'journal_id':journal_id,'journal_text':text, 'journal_date':journal_date.isoformat(), 'mood':mood, 'active':True})\
                                         .execute()
-                        logger.info(f"Successfully added journal for user: {current_user} to 'journals' table.")
+                        logger.info(f"Successfully added journal for user: {current_user}.")
                     except Exception as e:
-                        st.error("Error while adding journal, Please Try again later")
+                        st.error("Error while adding journal, please try again later.")
                         logger.Exception(f"Failed to add journal for user: {current_user}")
                         st.stop()
 
@@ -173,8 +173,8 @@ if st.session_state.get('logged_in') == True:
                                .data
             logger.info(f"Successfully retrieved all journals for user: {current_user} to display, count {len(all_journals)}")
         except:
-            st.error(f"Failed to load journals, please try again later")
-            logger.exception(f"Failed to load journals from table 'journals' for user: {current_user}.")
+            st.error(f"Failed to load journals, please try again later.")
+            logger.exception(f"Failed to load journals for user: {current_user}.")
             st.stop()
 
         if len(all_journals) == 0:
@@ -221,7 +221,7 @@ if st.session_state.get('logged_in') == True:
                             logger.info(f"Deleted journal: {current_journal} for user: {current_user}")
                         except Exception as e:
                             st.error(f"Failed to delete the journal, please try again later")
-                            logger.exception(f"failed to delete journal: {current_journal} for user: {current_user} from table 'journals'")
+                            logger.exception(f"failed to delete journal: {current_journal} for user: {current_user}.")
                             st.error()
                         
                         st.session_state['message_journal'] = 'Journal Deleted.'

@@ -68,7 +68,7 @@ if st.session_state.get('logged_in') == True:
                 .eq('active', True)\
                 .execute()\
             
-            logger.info(f"Successfully retrieved task: {taskid_to_edit} from table 'tasks' to edit, count {len(response.data)}")
+            logger.info(f"Successfully retrieved task: {taskid_to_edit}.")
                 
             
             if response.data:
@@ -78,7 +78,7 @@ if st.session_state.get('logged_in') == True:
                 st.stop()
         except Exception as e:
             st.error(f"Server error occurred, please try again later") 
-            logger.exception(f"Failed to retrieve task: {taskid_to_edit} from table 'tasks' to edit.")
+            logger.exception(f"Failed to retrieve task: {taskid_to_edit} to edit.")
             st.stop()
         
         if len(edit_task):
@@ -119,7 +119,7 @@ if st.session_state.get('logged_in') == True:
                                        .execute()
                         logger.info(f"Task update is success for user: {current_user}, task_id: {st.session_state['task_to_edit']}")
                     except Exception as e:
-                        st.error("Error while updating task, Please Try again later.")
+                        st.error("Error while updating task, please try again later.")
                         logger.exception(f"Failed to update task for user: {current_user}, task_id: {st.session_state['task_to_edit']}")
                         st.stop()
 
@@ -135,7 +135,7 @@ if st.session_state.get('logged_in') == True:
                         new_task = conn.table("tasks")\
                                        .insert({'user_id':current_user, 'task_id':task_id, 'task_name':task, 'due_date':due_date.isoformat(), 'completion_date':None, 'active':True})\
                                        .execute()
-                        logger.info(f"Successfully added task for user {current_user} to 'tasks' table.")
+                        logger.info(f"Successfully added task for user {current_user}.")
                     except Exception as e:
                         st.error(f"Error while adding task, please try again later.")
                         logger.Exception(f"Failed to add task for user:{current_user}")
@@ -160,7 +160,7 @@ if st.session_state.get('logged_in') == True:
             logger.info(f"Successfully retrieved all tasks for user: {current_user} to display, count {len(all_tasks)}")
         except Exception as e:
             st.error(f"Failed to load tasks, please try again later.")
-            logger.exception(f"Failed to load tasks from table 'tasks' for user: {current_user}.")
+            logger.exception(f"Failed to load tasks for user: {current_user}.")
             st.stop()
 
         if len(all_tasks) == 0:
@@ -211,7 +211,7 @@ if st.session_state.get('logged_in') == True:
                         
                     except Exception as e:
                         st.error(f"Error while marking the task as complete, please try again later.")
-                        logger.exception(f"failed to mark task: {current_task} as complete for user: {current_user} from table 'tasks'.")
+                        logger.exception(f"failed to mark task: {current_task} as complete for user: {current_user}.")
                         st.stop()
 
                     st.session_state['message_task'] = "Yay!! you have completed a Task."
@@ -233,7 +233,7 @@ if st.session_state.get('logged_in') == True:
                         logger.info(f"Deleted task: {current_task} for user: {current_user}")
                     except Exception as e:
                         st.error(f"Failed to delete the task, please try again later")
-                        logger.exception(f"failed to delete task: {current_task} for user: {current_user} from table 'tasks'")
+                        logger.exception(f"failed to delete task: {current_task} for user: {current_user}")
                             
                         st.stop()
 
